@@ -1,0 +1,35 @@
+pipeline {
+    agent {
+        label 'kubernetes-agent'
+    }
+
+    environment {
+        GIT_REPO = 'https://github.com/Dhananjayakl/Kubernetes-devops-task.git'
+        BRANCH = 'main'
+    }
+
+
+    stages {
+        stage('Checkout repo') {
+            steps {
+                git branch: BRANCH,
+                    url: GIT_REPO
+            }
+        }
+
+        stage('Deploy Pod') {
+                steps {
+                    dir('assignment-1') {
+                    echo 'Applying Kubernetes pod...'
+                    sh 'kubectl apply -f pod.yaml'
+
+                    echo 'Waiting for pod to be created...'
+                    sh 'kubectl get pods'
+
+                    echo 'Pod details:'
+                    sh 'kubectl describe pod $(kubectl get pods -o jsonpath="{.items[0].metadata.name}")'
+                }
+                }
+            }
+    }
+}
