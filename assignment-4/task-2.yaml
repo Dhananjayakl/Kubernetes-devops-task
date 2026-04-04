@@ -8,4 +8,4 @@ spec:
     image: nginx
   - name: busybox
     image: busybox
-    command: ["sleep", "3600"]
+    command: ["sleep", "3600"] 
