@@ -1,0 +1,15 @@
+# app-config.yaml  (this is the file you'll load into the ConfigMap)
+database:
+  host: "postgres.internal"
+  port: 5432
+  name: "myapp_db"
+  pool_size: 10
+
+app:
+  debug: false
+  log_level: "info"
+  max_connections: 100
+
+cache:
+  ttl_seconds: 300
+  backend: "redis"
