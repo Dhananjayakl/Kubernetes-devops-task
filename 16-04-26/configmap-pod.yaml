@@ -1,0 +1,22 @@
+# configmap-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: configmap-volume-pod
+spec:
+  tolerations:                    # ← tolerate taint so it can run on either node
+  - key: "key"
+    operator: "Equal"
+    value: "value"
+    effect: "NoSchedule"
+  containers:
+  - name: app
+    image: nginx:latest
+    volumeMounts:
+    - name: config-volume
+      mountPath: /etc/config       # ← ConfigMap files appear here
+      readOnly: true
+  volumes:
+  - name: config-volume
+    configMap:
+      name: app-config             # ← references the ConfigMap you created
