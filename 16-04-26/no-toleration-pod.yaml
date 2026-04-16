@@ -1,0 +1,9 @@
+# no-toleration-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-toleration-pod
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
