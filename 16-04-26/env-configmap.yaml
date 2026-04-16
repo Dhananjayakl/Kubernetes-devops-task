@@ -1,0 +1,11 @@
+# env-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-env-config
+data:
+  APP_ENV: "production"
+  APP_PORT: "8080"
+  LOG_LEVEL: "info"
+  MAX_CONNECTIONS: "100"
+  DB_HOST: "postgres.internal"

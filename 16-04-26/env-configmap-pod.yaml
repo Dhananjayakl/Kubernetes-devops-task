@@ -1,0 +1,25 @@
+# env-configmap-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: env-configmap-pod
+spec:
+  tolerations:
+  - key: "key"
+    operator: "Equal"
+    value: "value"
+    effect: "NoSchedule"
+  containers:
+  - name: app
+    image: nginx:latest
+    # Method A: Inject ALL keys from ConfigMap at once
+    envFrom:
+    - configMapRef:
+        name: app-env-config
+    # Method B: Inject SPECIFIC keys with custom env var names
+    env:
+    - name: MY_CUSTOM_PORT        # custom name in container
+      valueFrom:
+        configMapKeyRef:
+          name: app-env-config
+          key: APP_PORT           # key from ConfigMap
