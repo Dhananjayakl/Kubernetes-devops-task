@@ -1,0 +1,33 @@
+# toleration-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toleration-demo
+  labels:
+    app: toleration-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: toleration-demo
+  template:
+    metadata:
+      labels:
+        app: toleration-demo
+    spec:
+      # ✅ Toleration allows scheduling on tainted node
+      tolerations:
+      - key: "key"
+        operator: "Equal"
+        value: "value"
+        effect: "NoSchedule"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
