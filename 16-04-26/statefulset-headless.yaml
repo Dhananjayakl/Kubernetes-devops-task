@@ -1,0 +1,45 @@
+# statefulset-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-headless
+  labels:
+    app: nginx-stateful
+spec:
+  clusterIP: None              # ← This makes it HEADLESS
+  selector:
+    app: nginx-stateful
+  ports:
+  - port: 80
+    name: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nginx-stateful
+spec:
+  serviceName: "nginx-headless"  # ← must match headless service name
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-stateful
+  template:
+    metadata:
+      labels:
+        app: nginx-stateful
+    spec:
+      tolerations:
+      - key: "key"
+        operator: "Equal"
+        value: "value"
+        effect: "NoSchedule"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+          name: web
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "64Mi"
