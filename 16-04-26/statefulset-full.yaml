@@ -1,0 +1,74 @@
+# statefulset-full.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-headless
+spec:
+  clusterIP: None
+  selector:
+    app: webapp-stateful
+  ports:
+  - port: 3000
+    name: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: webapp-stateful
+spec:
+  serviceName: "webapp-headless"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: webapp-stateful
+  template:
+    metadata:
+      labels:
+        app: webapp-stateful
+    spec:
+      tolerations:
+      - key: "key"
+        operator: "Equal"
+        value: "value"
+        effect: "NoSchedule"
+      containers:
+      - name: webapp
+        image: nginx:latest
+        # Inject ConfigMap as env vars
+        envFrom:
+        - configMapRef:
+            name: webapp-config
+        # Inject Secret as env vars
+        - secretRef:
+            name: webapp-secret
+        # Mount Secret as files for anything needing file-based secrets
+        volumeMounts:
+        - name: secret-files
+          mountPath: /etc/app-secrets
+          readOnly: true
+        - name: config-files
+          mountPath: /etc/app-config
+          readOnly: true
+        - name: webapp-storage
+          mountPath: /var/app/data
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+      volumes:
+      - name: secret-files
+        secret:
+          secretName: webapp-secret
+          defaultMode: 0400
+      - name: config-files
+        configMap:
+          name: webapp-config
+  volumeClaimTemplates:
+  - metadata:
+      name: webapp-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "gp2"
+      resources:
+        requests:
+          storage: 1Gi
