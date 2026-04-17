@@ -1,0 +1,57 @@
+# statefulset-tainted.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: tainted-app-headless
+spec:
+  clusterIP: None
+  selector:
+    app: tainted-app
+  ports:
+  - port: 80
+    name: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tainted-app
+spec:
+  serviceName: "tainted-app-headless"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tainted-app
+  template:
+    metadata:
+      labels:
+        app: tainted-app
+    spec:
+      # ✅ STEP 1: Tolerate the taint (required to allow scheduling)
+      tolerations:
+      - key: "key"
+        operator: "Equal"
+        value: "value"
+        effect: "NoSchedule"
+      # ✅ STEP 2: Prefer/force tainted node using nodeAffinity
+      affinity:
+        nodeAffinity:
+          # Use requiredDuringScheduling to FORCE onto the tainted node
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - ip-10-0-8-22.ec2.internal   # your tainted node
+      containers:
+      - name: app
+        image: nginx:latest
+        envFrom:
+        - configMapRef:
+            name: webapp-config
+        - secretRef:
+            name: webapp-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "64Mi"
