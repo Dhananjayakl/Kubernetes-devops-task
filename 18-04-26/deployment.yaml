@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: website
-          image: yourdockerhubusername/my-k8s-website:v1
+          image: dhananjay93/my-k8s-website:v1
           ports:
             - containerPort: 80
           resources:
