@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        label 'kubernetes-agent'
+    }
 
     environment {
         KUBECONFIG = credentials('kubeconfig')      // Jenkins credential: your kubeconfig file
