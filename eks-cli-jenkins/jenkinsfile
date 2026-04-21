@@ -1,0 +1,122 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+        AWS_REGION            = 'us-east-1'
+        CLUSTER_NAME          = 'jenkins-eks-cluster'
+        NODE_INSTANCE_TYPE    = 't3.medium'
+        DESIRED_NODES         = '2'
+        MIN_NODES             = '1'
+        MAX_NODES             = '3'
+    }
+
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['create', 'destroy'],
+            description: 'create = provision EKS cluster | destroy = delete all resources'
+        )
+    }
+
+    stages {
+
+        stage('Verify Tools') {
+            steps {
+                sh '''
+                    echo "=== AWS CLI ==="
+                    aws --version
+
+                    echo "=== kubectl ==="
+                    kubectl version --client
+
+                    echo "=== AWS Identity ==="
+                    aws sts get-caller-identity
+                '''
+            }
+        }
+
+        stage('Create IAM Roles') {
+            when { expression { params.ACTION == 'create' } }
+            steps {
+                sh 'chmod +x scripts/01-create-iam-roles.sh && bash scripts/01-create-iam-roles.sh'
+            }
+        }
+
+        stage('Create VPC & Network') {
+            when { expression { params.ACTION == 'create' } }
+            steps {
+                sh 'chmod +x scripts/02-create-network.sh && bash scripts/02-create-network.sh'
+            }
+        }
+
+        stage('Create EKS Cluster') {
+            when { expression { params.ACTION == 'create' } }
+            steps {
+                sh 'chmod +x scripts/03-create-cluster.sh && bash scripts/03-create-cluster.sh'
+            }
+        }
+
+        stage('Create Node Group') {
+            when { expression { params.ACTION == 'create' } }
+            steps {
+                sh 'chmod +x scripts/04-create-nodegroup.sh && bash scripts/04-create-nodegroup.sh'
+            }
+        }
+
+        stage('Validate Cluster') {
+            when { expression { params.ACTION == 'create' } }
+            steps {
+                sh 'chmod +x scripts/05-validate-cluster.sh && bash scripts/05-validate-cluster.sh'
+            }
+        }
+
+        stage('Save kubeconfig') {
+            when { expression { params.ACTION == 'create' } }
+            steps {
+                sh '''
+                    aws eks update-kubeconfig \
+                        --region ${AWS_REGION} \
+                        --name ${CLUSTER_NAME}
+                    cp ~/.kube/config kubeconfig-${CLUSTER_NAME}.yaml
+                '''
+                archiveArtifacts artifacts: "kubeconfig-${CLUSTER_NAME}.yaml", fingerprint: true
+            }
+        }
+
+        stage('Destroy Cluster') {
+            when { expression { params.ACTION == 'destroy' } }
+            steps {
+                sh 'chmod +x scripts/06-cleanup.sh && bash scripts/06-cleanup.sh'
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                if (params.ACTION == 'create') {
+                    echo """
+                    ✓ EKS Cluster created successfully!
+                    Cluster : ${CLUSTER_NAME}
+                    Region  : ${AWS_REGION}
+                    Nodes   : ${DESIRED_NODES} x ${NODE_INSTANCE_TYPE}
+                    """
+                } else {
+                    echo "✓ All resources destroyed successfully!"
+                }
+            }
+        }
+        failure {
+            sh '''
+                echo "=== Cluster status at failure ==="
+                aws eks describe-cluster \
+                    --name ${CLUSTER_NAME} \
+                    --region ${AWS_REGION} \
+                    --query 'cluster.{Name:name,Status:status}' \
+                    --output table || true
+            '''
+        }
+    }
+}
