@@ -43,35 +43,46 @@ pipeline {
         stage('Create IAM Roles') {
             when { expression { params.ACTION == 'create' } }
             steps {
+                dir('eks-cli-jenkins') {
                 sh 'sudo chmod 777 scripts/01-create-iam-roles.sh && bash scripts/01-create-iam-roles.sh'
             }
-        }
+        
+            }
+            }
 
         stage('Create VPC & Network') {
             when { expression { params.ACTION == 'create' } }
             steps {
+                dir('eks-cli-jenkins') {
                 sh 'sudo chmod 777 scripts/02-create-network.sh && bash scripts/02-create-network.sh'
             }
+        }
         }
 
         stage('Create EKS Cluster') {
             when { expression { params.ACTION == 'create' } }
             steps {
+                dir('eks-cli-jenkins') {
                 sh 'sudo chmod 777 scripts/03-create-cluster.sh && bash scripts/03-create-cluster.sh'
             }
+        }
         }
 
         stage('Create Node Group') {
             when { expression { params.ACTION == 'create' } }
             steps {
-                sh 'sudo chmod 777 scripts/04-create-nodegroup.sh && bash scripts/04-create-nodegroup.sh'
+                dir('eks-cli-jenkins') {
+                    sh 'sudo chmod 777 scripts/04-create-nodegroup.sh && bash scripts/04-create-nodegroup.sh'
+                }
             }
         }
 
         stage('Validate Cluster') {
             when { expression { params.ACTION == 'create' } }
             steps {
-                sh 'sudo chmod 777 scripts/05-validate-cluster.sh && bash scripts/05-validate-cluster.sh'
+                dir('eks-cli-jenkins') {
+                    sh 'sudo chmod 777 scripts/05-validate-cluster.sh && bash scripts/05-validate-cluster.sh'
+                }
             }
         }
 
@@ -91,7 +102,9 @@ pipeline {
         stage('Destroy Cluster') {
             when { expression { params.ACTION == 'destroy' } }
             steps {
-                sh 'sudo chmod 777 scripts/06-cleanup.sh && bash scripts/06-cleanup.sh'
+                dir('eks-cli-jenkins') {
+                    sh 'sudo chmod 777 scripts/06-cleanup.sh && bash scripts/06-cleanup.sh'
+                }
             }
         }
     }
