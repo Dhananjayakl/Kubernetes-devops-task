@@ -1,0 +1,141 @@
+pipeline {
+    agent any
+
+    environment {
+        KUBECONFIG = credentials('kubeconfig')      // Jenkins credential: your kubeconfig file
+        HELM_RELEASE = "my-nginx"
+        CUSTOM_RELEASE = "my-custom-app"
+        NAMESPACE = "default"
+    }
+
+    stages {
+
+        stage('1. Install & Verify Helm') {
+            steps {
+                sh '''
+                    if ! command -v helm &> /dev/null; then
+                        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+                    fi
+                    helm version
+                '''
+            }
+        }
+
+        stage('2. Add Bitnami Repo & List Charts') {
+            steps {
+                sh '''
+                    helm repo add bitnami https://charts.bitnami.com/bitnami || true
+                    helm repo update
+                    helm repo list
+                    helm search repo bitnami --max-col-width 60 | head -30
+                '''
+            }
+        }
+
+        stage('3. Search Nginx Chart & Show Info') {
+            steps {
+                sh '''
+                    helm search repo bitnami/nginx
+                    helm show chart bitnami/nginx
+                    helm show values bitnami/nginx | head -50
+                '''
+            }
+        }
+
+        stage('4. Install Nginx Helm Chart') {
+            steps {
+                sh '''
+                    helm upgrade --install ${HELM_RELEASE} bitnami/nginx \
+                        --namespace ${NAMESPACE} \
+                        --create-namespace \
+                        --wait \
+                        --timeout 5m
+                '''
+            }
+        }
+
+        stage('5. List All Helm Releases') {
+            steps {
+                sh 'helm list --all-namespaces'
+            }
+        }
+
+        stage('6. Check Status & History') {
+            steps {
+                sh '''
+                    helm status ${HELM_RELEASE} -n ${NAMESPACE}
+                    helm history ${HELM_RELEASE} -n ${NAMESPACE}
+                '''
+            }
+        }
+
+        stage('7. Upgrade Release - Change Replica Count') {
+            steps {
+                sh '''
+                    helm upgrade ${HELM_RELEASE} bitnami/nginx \
+                        --namespace ${NAMESPACE} \
+                        --set replicaCount=2 \
+                        --wait \
+                        --timeout 5m
+                    helm history ${HELM_RELEASE} -n ${NAMESPACE}
+                '''
+            }
+        }
+
+        stage('8. Rollback to Previous Revision') {
+            steps {
+                sh '''
+                    helm rollback ${HELM_RELEASE} 1 -n ${NAMESPACE} --wait
+                    helm history ${HELM_RELEASE} -n ${NAMESPACE}
+                    helm status ${HELM_RELEASE} -n ${NAMESPACE}
+                '''
+            }
+        }
+
+        stage('9. Create & Modify Custom Helm Chart') {
+            steps {
+                sh '''
+                    rm -rf my-custom-chart
+                    helm create my-custom-chart
+
+                    # Modify values.yaml: set replica count and image
+                    sed -i 's/replicaCount: 1/replicaCount: 2/' my-custom-chart/values.yaml
+                    sed -i 's/repository: nginx/repository: nginx/' my-custom-chart/values.yaml
+
+                    cat my-custom-chart/values.yaml
+                    helm lint my-custom-chart
+                '''
+            }
+        }
+
+        stage('10. Deploy Custom Chart & Validate') {
+            steps {
+                sh '''
+                    helm upgrade --install ${CUSTOM_RELEASE} ./my-custom-chart \
+                        --namespace ${NAMESPACE} \
+                        --wait \
+                        --timeout 5m
+
+                    echo "=== Helm Releases ==="
+                    helm list -n ${NAMESPACE}
+
+                    echo "=== Kubernetes Resources ==="
+                    kubectl get pods,svc,deploy -n ${NAMESPACE} -l app.kubernetes.io/instance=${CUSTOM_RELEASE}
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "All Helm steps completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed. Check logs above."
+            sh '''
+                helm list --all-namespaces || true
+                kubectl get pods -n ${NAMESPACE} || true
+            '''
+        }
+    }
+}
