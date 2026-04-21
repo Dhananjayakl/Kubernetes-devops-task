@@ -1,3 +1,4 @@
+gpt link : https://claude.ai/share/f3e7aacd-8c44-48c9-aa53-7bcb271e5e35
 Assignment: 
 
 Deploy a Low-Cost Website Using Kubernetes
